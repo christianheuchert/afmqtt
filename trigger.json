@@ -1,7 +1,7 @@
 {
-  "name": "flogo-mqtt",
+  "name": "af-mqtt",
   "type": "flogo:trigger",
-  "ref": "github.com/TIBCOSoftware/flogo-contrib/trigger/mqtt",
+  "ref": "https://github.com/AiRISTAFlowInc/FSMQTT",
   "version": "0.0.1",
   "title": "MQTT Message",
   "description": "Simple MQTT Trigger",
