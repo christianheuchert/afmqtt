@@ -3,6 +3,8 @@ package mqtt
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,9 @@ import (
 )
 
 var triggerMd = trigger.NewMetadata(&Settings{}, &HandlerSettings{}, &Output{})
+
+// Global config
+var config = readConfig("mqtt.json") // config data
 
 func init() {
 	_ = trigger.Register(&Trigger{}, &Factory{})
@@ -173,7 +178,7 @@ func (t *Trigger) Initialize(ctx trigger.InitContext) error {
 	options := initClientOption(settings)
 	t.options = options
 
-	if strings.HasPrefix(settings.Broker, "ssl") {
+	if strings.HasPrefix(config.BrokerURL, "ssl") {
 
 		cfg := &ssl.Config{}
 
@@ -228,10 +233,10 @@ func (t *Trigger) Initialize(ctx trigger.InitContext) error {
 func initClientOption(settings *Settings) *mqtt.ClientOptions {
 
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(settings.Broker)
-	opts.SetClientID(settings.Id)
-	opts.SetUsername(settings.Username)
-	opts.SetPassword(settings.Password)
+	opts.AddBroker(config.BrokerURL)
+	opts.SetClientID(config.BrokerId)
+	opts.SetUsername(config.BrokerUsername)
+	opts.SetPassword(config.BrokerPassword)
 	opts.SetCleanSession(settings.CleanSession)
 	opts.SetAutoReconnect(settings.AutoReconnect)
 
@@ -260,7 +265,8 @@ func (t *Trigger) Start() error {
 	t.client = client
 
 	for _, handler := range t.handlers {
-		parsed := ParseTopic(handler.settings.Topic)
+		// parsed := ParseTopic(handler.settings.Topic)
+		parsed := ParseTopic(config.BrokerTopic) // NEW
 		if token := client.Subscribe(parsed.String(), byte(handler.settings.Qos), t.getHanlder(handler, parsed)); token.Wait() && token.Error() != nil {
 			t.logger.Errorf("Error subscribing to topic %s: %s", handler.settings.Topic, token.Error())
 			return token.Error()
@@ -278,6 +284,7 @@ func (t *Trigger) Stop() error {
 	//unsubscribe from topics
 	for _, handler := range t.handlers {
 		topic := ParseTopic(handler.settings.Topic).String()
+		ParseTopic(config.BrokerTopic) // NEW
 		t.logger.Debug("Unsubscribing from topic: ", topic)
 		if token := t.client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
 			t.logger.Errorf("Error unsubscribing from topic %s: %s", topic, token.Error())
@@ -342,4 +349,41 @@ func runHandler(handler trigger.Handler, payload, topic string, params map[strin
 	}
 
 	return results, nil
+}
+
+// 	config := readConfig("mqtt.json") // config data
+func readConfig(configPath string) Config {
+	var config Config
+
+	// Read the JSON file.
+    jsonFile, err := os.ReadFile(configPath)
+    if err != nil {
+        fmt.Println(err)
+        return config
+    }
+
+    // Decode the JSON file into the config struct.
+    err = json.Unmarshal(jsonFile, &config)
+    if err != nil {
+        fmt.Println(err)
+        return config
+    }
+
+	config.BrokerId = generateUniqueID()
+
+	return config
+}
+func generateUniqueID() string {
+    baseID := "AFmqtt"
+    timestamp := time.Now().UnixNano()
+    return fmt.Sprintf("%s_%d", baseID, timestamp)
+}
+
+type Config struct {
+	ConfigFolderPath string
+    BrokerURL string
+    BrokerPassword string
+    BrokerUsername string
+	BrokerId string
+	BrokerTopic string
 }
