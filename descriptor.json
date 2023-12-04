@@ -2,7 +2,7 @@
   "name": "flogo-mqtt",
   "type": "flogo:trigger",
   "version": "0.1.0",
-  "title": "AF MQTT Message 7",
+  "title": "AF MQTT Message 8",
   "description": "Simple MQTT Trigger",
   "homepage": "https://github.com/project-flogo/edge-contrib/tree/master/trigger/mqtt",
   "settings":[],

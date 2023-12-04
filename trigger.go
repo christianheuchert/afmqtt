@@ -10,13 +10,12 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/ssl"
 	"github.com/project-flogo/core/trigger"
 )
 
-var triggerMd = trigger.NewMetadata(&Settings{}, &HandlerSettings{}, &Output{})
+var triggerMd = trigger.NewMetadata(&Output{})
 
 // Global config
 var config = readConfig("mqtt.json") // config data
@@ -141,7 +140,6 @@ func (t Topic) String() string {
 // Trigger is simple MQTT trigger
 type Trigger struct {
 	handlers map[string]*clientHandler
-	settings *Settings
 	logger   log.Logger
 	options  *mqtt.ClientOptions
 	client   mqtt.Client
@@ -149,7 +147,6 @@ type Trigger struct {
 type clientHandler struct {
 	//client mqtt.Client
 	handler  trigger.Handler
-	settings *HandlerSettings
 }
 type Factory struct {
 }
@@ -160,41 +157,21 @@ func (*Factory) Metadata() *trigger.Metadata {
 
 // New implements trigger.Factory.New
 func (*Factory) New(config *trigger.Config) (trigger.Trigger, error) {
-	s := &Settings{}
-
-	err := metadata.MapToStruct(config.Settings, s, true)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Trigger{settings: s}, nil
+	return &Trigger{}, nil
 }
 
 // Initialize implements trigger.Initializable.Initialize
 func (t *Trigger) Initialize(ctx trigger.InitContext) error {
 	t.logger = ctx.Logger()
 
-	settings := t.settings
-	options := initClientOption(settings)
+	options := initClientOption()
 	t.options = options
 
 	if strings.HasPrefix(config.BrokerURL, "ssl") {
 
 		cfg := &ssl.Config{}
 
-		if len(settings.SSLConfig) != 0 {
-			err := cfg.FromMap(settings.SSLConfig)
-			if err != nil {
-				return err
-			}
-
-			if _, set := settings.SSLConfig["skipVerify"]; !set {
-				cfg.SkipVerify = true
-			}
-			if _, set := settings.SSLConfig["useSystemCert"]; !set {
-				cfg.UseSystemCert = true
-			}
-		} else {
+		{
 			//using ssl but not configured, use defaults
 			cfg.SkipVerify = true
 			cfg.UseSystemCert = true
@@ -216,37 +193,18 @@ func (t *Trigger) Initialize(ctx trigger.InitContext) error {
 
 	t.handlers = make(map[string]*clientHandler)
 
-	for _, handler := range ctx.GetHandlers() {
-
-		s := &HandlerSettings{}
-		err := metadata.MapToStruct(handler.Settings(), s, true)
-		if err != nil {
-			return err
-		}
-
-		t.handlers[s.Topic] = &clientHandler{handler: handler, settings: s}
-	}
-
 	return nil
 }
 
-func initClientOption(settings *Settings) *mqtt.ClientOptions {
+func initClientOption() *mqtt.ClientOptions {
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(config.BrokerURL)
 	opts.SetClientID(config.BrokerId)
 	opts.SetUsername(config.BrokerUsername)
 	opts.SetPassword(config.BrokerPassword)
-	opts.SetCleanSession(settings.CleanSession)
-	opts.SetAutoReconnect(settings.AutoReconnect)
 
-	if settings.Store != ":memory:" && settings.Store != "" {
-		opts.SetStore(mqtt.NewFileStore(settings.Store))
-	}
-
-	if settings.KeepAlive != 0 {
-		opts.SetKeepAlive(time.Duration(settings.KeepAlive) * time.Second)
-	} else {
+	{
 		opts.SetKeepAlive(2 * time.Second)
 	}
 
@@ -267,12 +225,12 @@ func (t *Trigger) Start() error {
 	for _, handler := range t.handlers {
 		// parsed := ParseTopic(handler.settings.Topic)
 		parsed := ParseTopic(config.BrokerTopic) // NEW
-		if token := client.Subscribe(parsed.String(), byte(handler.settings.Qos), t.getHanlder(handler, parsed)); token.Wait() && token.Error() != nil {
-			t.logger.Errorf("Error subscribing to topic %s: %s", handler.settings.Topic, token.Error())
+		if token := client.Subscribe(parsed.String(), 0, t.getHanlder(handler, parsed)); token.Wait() && token.Error() != nil {
+			t.logger.Errorf("Error subscribing to topic %s: %s", parsed, token.Error())
 			return token.Error()
 		}
 
-		t.logger.Debugf("Subscribed to topic: %s", handler.settings.Topic)
+		t.logger.Debugf("Subscribed to topic: %s", parsed)
 	}
 
 	return nil
@@ -282,9 +240,8 @@ func (t *Trigger) Start() error {
 func (t *Trigger) Stop() error {
 
 	//unsubscribe from topics
-	for _, handler := range t.handlers {
-		topic := ParseTopic(handler.settings.Topic).String()
-		ParseTopic(config.BrokerTopic) // NEW
+	for _, _ = range t.handlers {
+		topic := config.BrokerTopic
 		t.logger.Debug("Unsubscribing from topic: ", topic)
 		if token := t.client.Unsubscribe(topic); token.Wait() && token.Error() != nil {
 			t.logger.Errorf("Error unsubscribing from topic %s: %s", topic, token.Error())
@@ -299,39 +256,9 @@ func (t *Trigger) Stop() error {
 func (t *Trigger) getHanlder(handler *clientHandler, parsed Topic) func(mqtt.Client, mqtt.Message) {
 	return func(client mqtt.Client, msg mqtt.Message) {
 		topic := msg.Topic()
-		qos := msg.Qos()
 		payload := string(msg.Payload())
-		params := parsed.Match(ParseTopic(topic))
 
 		t.logger.Debugf("Topic[%s] - Payload Recieved: %s", topic, payload)
-
-		result, err := runHandler(handler.handler, payload, topic, params)
-		if err != nil {
-			t.logger.Error("Error handling message: %v", err)
-			return
-		}
-
-		if handler.settings.ReplyTopic != "" {
-			reply := &Reply{}
-			err = reply.FromMap(result)
-			if err != nil {
-				t.logger.Error("Error handling message: %v", err)
-				return
-			}
-
-			if reply.Data != nil {
-				dataJson, err := json.Marshal(reply.Data)
-				if err != nil {
-					return
-				}
-				token := client.Publish(handler.settings.ReplyTopic, qos, handler.settings.Retain, string(dataJson))
-				sent := token.WaitTimeout(5000 * time.Millisecond)
-				if !sent {
-					t.logger.Errorf("Timeout occurred while trying to publish reply to topic '%s'", handler.settings.ReplyTopic)
-					return
-				}
-			}
-		}
 	}
 }
 
