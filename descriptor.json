@@ -19,11 +19,6 @@
     }
   ],
   "handler": {
-    "settings": [
-      {
-        "name": "topic",
-        "type": "string"
-      }
-    ]
+    "settings": []
   }
 }

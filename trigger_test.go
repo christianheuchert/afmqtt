@@ -2,43 +2,54 @@ package mqtt
 
 import (
 	// "encoding/json"
-	"os"
-	// "testing"
+	"fmt"
+	// "os"
+	"testing"
+
 	// //MQTT "github.com/eclipse/paho.mqtt.golang"
 	// "github.com/TIBCOSoftware/flogo-lib/core/trigger"
+	"github.com/stretchr/testify/assert"
 )
 
-var jsonTestMetadata = getTestJsonMetadata()
+func TestEval(t *testing.T) {
 
-func getTestJsonMetadata() string {
-	jsonMetadataBytes, err := os.ReadFile("trigger.json")
-	if err != nil {
-		panic("No Json Metadata found for trigger.json path")
-	}
-	return string(jsonMetadataBytes)
+	config := readConfig("mqtt.json") // config data
+	fmt.Println("config: ", config)
+
+	assert.NotNil(t, config)
 }
 
-const testConfig string = `{
-  "name": "flogo-mqtt",
-  "settings": {
-    "topic": "flogo/#",
-    "broker": "tcp://127.0.0.1:1883",
-    "id": "flogoEngine",
-    "user": "",
-    "password": "",
-    "store": "",
-    "qos": "0",
-    "cleansess": "false"
-  },
-  "handlers": [
-    {
-      "actionId": "device_info",
-      "settings": {
-        "topic": "test_start"
-      }
-    }
-  ]
-}`
+// var jsonTestMetadata = getTestJsonMetadata()
+
+// func getTestJsonMetadata() string {
+// 	jsonMetadataBytes, err := os.ReadFile("trigger.json")
+// 	if err != nil {
+// 		panic("No Json Metadata found for trigger.json path")
+// 	}
+// 	return string(jsonMetadataBytes)
+// }
+
+// const testConfig string = `{
+//   "name": "flogo-mqtt",
+//   "settings": {
+//     "topic": "flogo/#",
+//     "broker": "tcp://127.0.0.1:1883",
+//     "id": "flogoEngine",
+//     "user": "",
+//     "password": "",
+//     "store": "",
+//     "qos": "0",
+//     "cleansess": "false"
+//   },
+//   "handlers": [
+//     {
+//       "actionId": "device_info",
+//       "settings": {
+//         "topic": "test_start"
+//       }
+//     }
+//   ]
+// }`
 
 //type TestRunner struct {
 //}
