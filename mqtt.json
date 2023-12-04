@@ -1,6 +1,5 @@
 {
-    "BrokerURL": "3.212.201.170",
-    "BrokerPort":"9001",
+    "BrokerURL": "ws://3.212.201.170:9001",
     "BrokerUsername":"!@3%4*N]ZY@KfqSJ",
     "BrokerPassword":"9w#v;7Ma?*:5]W!U",
     "BrokerTopic":"WSMessageStreamTestAWS201170"
