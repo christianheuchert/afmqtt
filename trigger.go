@@ -3,8 +3,6 @@ package mqtt
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -55,12 +53,11 @@ func (t *MqttTrigger) Initialize(ctx trigger.InitContext) error {
 // Start implements trigger.Trigger.Start
 func (t *MqttTrigger) Start() error {
 
-	config := readConfig("mqtt.json") // config data
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(config.BrokerURL)
-	opts.SetClientID(config.BrokerId)
-	opts.SetUsername(config.BrokerUsername)
-	opts.SetPassword(config.BrokerPassword)
+	opts.AddBroker(t.config.GetSetting("broker"))
+	opts.SetClientID(t.config.GetSetting("id"))
+	opts.SetUsername(t.config.GetSetting("user"))
+	opts.SetPassword(t.config.GetSetting("password"))
 	b, err := data.CoerceToBoolean(t.config.Settings["cleansess"])
 	if err != nil {
 		log.Error("Error converting \"cleansess\" to a boolean ", err.Error())
@@ -100,7 +97,7 @@ func (t *MqttTrigger) Start() error {
 
 	for _, handler := range t.handlers {
 
-		topic := config.BrokerTopic
+		topic := handler.GetStringSetting("topic")
 
 		if token := t.client.Subscribe(topic, byte(i), nil); token.Wait() && token.Error() != nil {
 			log.Errorf("Error subscribing to topic %s: %s", topic, token.Error())
@@ -186,42 +183,4 @@ func (t *MqttTrigger) publishMessage(topic string, message string) {
 		log.Errorf("Timeout occurred while trying to publish to topic '%s'", topic)
 		return
 	}
-}
-
-// 	config := readConfig("mqtt.json") // config data
-func readConfig(configPath string) Config {
-	var config Config
-
-	// Read the JSON file.
-    jsonFile, err := os.ReadFile(configPath)
-    if err != nil {
-        fmt.Println(err)
-        return config
-    }
-
-    // Decode the JSON file into the config struct.
-    err = json.Unmarshal(jsonFile, &config)
-    if err != nil {
-        fmt.Println(err)
-        return config
-    }
-
-	config.BrokerId = generateUniqueID()
-
-	return config
-}
-func generateUniqueID() string {
-    baseID := "AFmqtt"
-    timestamp := time.Now().UnixNano()
-    return fmt.Sprintf("%s_%d", baseID, timestamp)
-}
-
-type Config struct {
-	ConfigFolderPath string
-    BrokerURL string
-    BrokerPort string
-    BrokerPassword string
-    BrokerUsername string
-	BrokerId string
-	BrokerTopic string
 }

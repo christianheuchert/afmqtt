@@ -1,23 +1,23 @@
 package mqtt
 
-import (
-	// "encoding/json"
-	"fmt"
-	// "os"
-	"testing"
+// import (
+// 	// "encoding/json"
+// 	"fmt"
+// 	// "os"
+// 	"testing"
 
-	// //MQTT "github.com/eclipse/paho.mqtt.golang"
-	// "github.com/TIBCOSoftware/flogo-lib/core/trigger"
-	"github.com/stretchr/testify/assert"
-)
+// 	// //MQTT "github.com/eclipse/paho.mqtt.golang"
+// 	// "github.com/TIBCOSoftware/flogo-lib/core/trigger"
+// 	"github.com/stretchr/testify/assert"
+// )
 
-func TestEval(t *testing.T) {
+// func TestEval(t *testing.T) {
 
-	config := readConfig("mqtt.json") // config data
-	fmt.Println("config: ", config)
+// 	config := readConfig("mqtt.json") // config data
+// 	fmt.Println("config: ", config)
 
-	assert.NotNil(t, config)
-}
+// 	assert.NotNil(t, config)
+// }
 
 // var jsonTestMetadata = getTestJsonMetadata()
 
