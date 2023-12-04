@@ -2,10 +2,39 @@
   "name": "af-mqtt",
   "type": "flogo:trigger",
   "version": "0.0.1",
-  "title": "AF MQTT Message",
+  "title": "AF MQTT Message 5",
   "description": "Simple MQTT Trigger",
   "homepage": "https://github.com/AiRISTAFlowInc/FSMQTT",
-  "settings": [],
+  "settings":[
+    {
+      "name": "broker",
+      "type": "string"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "user",
+      "type": "string"
+    },
+    {
+      "name": "password",
+      "type": "string"
+    },
+    {
+      "name": "store",
+      "type": "string"
+    },
+    {
+      "name": "qos",
+      "type": "double"
+    },
+    {
+      "name": "cleansess",
+      "type": "boolean"
+    }
+  ],
   "output": [
     {
       "name": "message",
@@ -19,6 +48,11 @@
     }
   ],
   "handler": {
-    "settings": []
+    "settings": [
+      {
+        "name": "topic",
+        "type": "string"
+      }
+    ]
   }
 }
